@@ -1,0 +1,52 @@
+#!/bin/sh
+
+SVN_HOST="http://svn.example.org"
+
+SYMFONY_VERSION="RELEASE_1_4_5"
+SYMFONY_REPO="http://svn.symfony-project.com/tags/$SYMFONY_VERSION"
+
+# CHECK PARAMETERS NUMBER
+NUMARGS=$#
+if [ $NUMARGS -lt 1 ]
+then
+        echo "Error!"
+        echo "Usage : $0 project_name"
+        exit 1
+fi
+PROJECTNAME=$1
+
+echo "Proceed (y/n)"
+read proceed
+
+if [ ${proceed} = n ] || [ ${proceed} = N ]
+	then
+	echo "Tenminating..."
+	exit 0
+elif [ ${proceed} = y ] || [ ${proceed} = Y ]
+	then
+	svn checkout "$SVN_HOST/$PROJECTNAME/trunk" $PROJECTNAME
+
+	cd $PROJECTNAME
+	mkdir -p lib/vendor
+	
+	svn add lib
+	svn commit -m "add lib/vendor"
+	svn propset svn:externals "symfony $SYMFONY_REPO" lib/vendor
+	svn commit -m "External link to Symfony"	
+	svn update
+	php lib/vendor/symfony/data/bin/symfony generate:project $PROJECTNAME
+
+	php symfony project:permissions
+	php symfony plugin:publish
+	svn add * --force
+
+	svn propset svn:ignore "*" log
+	svn propset svn:ignore "*" cache
+	svn propset svn:ignore "*" web/uploads
+	svn propset svn:ignore "*" web/sfDoctrinePlugin
+	svn commit -m "Project initialized"
+else
+	echo "Unknown Input. Exiting..."
+exit 0
+fi
+
